@@ -1,5 +1,15 @@
 ﻿using System;
+using System.Text;
 
+
+// This enum represents the possible outcomes of a game.
+public enum Results
+{
+    Win,
+    Lose,
+    Draw,
+    Undetermined
+}
 
 // This struct represents a basic game.
 public abstract class Game
@@ -8,8 +18,8 @@ public abstract class Game
     private protected static uint constIndex = 0;
 
     // Fields to store the first and second player's GameAccount objects.
-    public string FirstPlayer { get; }
-    public string SecondPlayer { get; }
+    public GameAccount FirstPlayer { get; }
+    public GameAccount SecondPlayer { get; }
 
     // Fields to store the rating cost and index of the game.
     public uint RatingCost { get; }
@@ -20,7 +30,7 @@ public abstract class Game
     public Results Result { get; protected set; }
 
     // Constructor to initialize the fields with the provided values.
-    public Game(string firstPlayer, string secondPlayer, uint cost, string gameName)
+    public Game(GameAccount firstPlayer, GameAccount secondPlayer, uint cost, string gameName)
     {
         FirstPlayer = firstPlayer;
         SecondPlayer = secondPlayer;
@@ -30,22 +40,92 @@ public abstract class Game
         Result = Results.Undetermined;
     }
 
+    // Main method of a game.
+    public abstract void Play();
+
+    // Method to simulate a game match.
+    public abstract void SimulatePlay();
+
 }
 
-public class TrainingGame : Game{
+// Basic version of a game, nothing special.
+public class BasicGame : Game
+{
+    // Constructor to initialize the fields with the provided values.
+    public BasicGame(GameAccount firstPlayer, GameAccount secondPlayer, uint cost) : base(firstPlayer, secondPlayer, cost, "Basic Game") { }
+
+    public override void Play()
+    {
+        // If the game was implemented fully, the main method would be here.
+        throw new NotImplementedException();
+    }
+
+    // This method simulates a game match.
+    public override void SimulatePlay()
+    {
+        Random r = new Random();
+        Result = r.NextDouble() >= 0.5 ? Results.Draw : r.NextDouble() >= 0.5 ? Results.Win : Results.Lose;
+        FirstPlayer.CompleteGame(this);
+    }
 
 }
+
+// Training version - no rating costs
+public class TrainingGame : Game
+{
+    // Constructor to initialize the fields with the provided values.
+    public TrainingGame(GameAccount firstPlayer, GameAccount secondPlayer) : base(firstPlayer, secondPlayer, 0, "Training Game") { }
+
+    public override void Play()
+    {
+        // If the game was implemented fully, the main method would be here.
+        throw new NotImplementedException();
+    }
+
+    // This method simulates a game match.
+    public override void SimulatePlay()
+    {
+        Random r = new Random();
+        Result = r.NextDouble() >= 0.5 ? Results.Draw : r.NextDouble() >= 0.5 ? Results.Win : Results.Lose;
+        FirstPlayer.CompleteGame(this);
+    }
+
+}
+
+// One-way version - only the "first" player gains/loses rating.
+public class OneWayGame : Game
+{
+    // Constructor to initialize the fields with the provided values.
+    public OneWayGame(GameAccount firstPlayer, GameAccount secondPlayer, uint cost) : base(firstPlayer, secondPlayer, cost, "One-way Game") { }
+
+    public override void Play()
+    {
+        // If the game was implemented fully, the main method would be here.
+        throw new NotImplementedException();
+    }
+
+    // This method simulates a game match.
+    public override void SimulatePlay()
+    {
+        Random r = new Random();
+        Result = r.NextDouble() >= 0.5 ? Results.Draw : r.NextDouble() >= 0.5 ? Results.Win : Results.Lose;
+        FirstPlayer.CompleteGame(this);
+    }
+
+}
+
+
 
 // This class represents a game account.
-public abstract class BaseGameAccount
+public class GameAccount
 {
     // Field to store the rating of the user.
     private uint rating = 5;
 
     // Fields to store user's name, games history and games count.
     public string UserName { get; protected set; }
-    public List<Game> GameHistory { get; set; }
-    public uint GamesCount { get; }
+    public List<Game> GameHistory { get; }
+    public uint GamesCount { get; protected set;}
 
     // Get/set for the rating field including the check for it not to be negative.
     public virtual uint CurrentRating
@@ -59,7 +139,7 @@ public abstract class BaseGameAccount
     }
 
     // Constructor to initialize the fields with the provided values.
-    public BaseGameAccount(string name)
+    public GameAccount(string name)
     {
         UserName = name;
         GamesCount = 0;
@@ -104,7 +184,8 @@ public abstract class BaseGameAccount
                 else if (game.Result == Results.Lose)
                     CurrentRating -= game.RatingCost;
             }
-            else if (game.SecondPlayer.UserName.Equals(this.UserName))
+            // If the game is one-way, only the first player gains/loses rating.
+            else if (game.SecondPlayer.UserName.Equals(this.UserName) && !(game is OneWayGame))
             {
                 if (game.Result.Equals(Results.Win))
                     CurrentRating -= game.RatingCost;
@@ -158,7 +239,8 @@ public abstract class BaseGameAccount
     }
 }
 
-class Program{
+class Program
+{
     public static void Main(string[] args)
     {
         Console.WriteLine("Hello World!");
