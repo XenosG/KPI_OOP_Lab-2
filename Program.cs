@@ -114,8 +114,6 @@ public class OneWayGame : Game
 
 }
 
-
-
 // This class represents a game account.
 public class GameAccount
 {
@@ -125,7 +123,7 @@ public class GameAccount
     // Fields to store user's name, games history and games count.
     public string UserName { get; protected set; }
     public List<Game> GameHistory { get; }
-    public uint GamesCount { get; protected set;}
+    public uint GamesCount { get; protected set; }
 
     // Get/set for the rating field including the check for it not to be negative.
     public virtual uint CurrentRating
@@ -208,7 +206,7 @@ public class GameAccount
     }
 
     // Method to convert game history list to a readable table view and return that as a string.
-    public static string GameHistoryToString(List<Game> history)
+    public string GameHistoryToString(List<Game> history)
     {
         // Find the maximum lengths of the game, player, and result strings.
         int maxGameNameLength = history.Max(game => game.GameName.Length);
@@ -232,17 +230,53 @@ public class GameAccount
 
         // Iterate over the games in the list and add them to the StringBuilder.
         foreach (Game game in history)
-            sb.Append($"{game.Index.ToString().PadRight(maxIndexLength + 6)} | {game.GameName.PadRight(maxGameNameLength + 7)} | {game.FirstPlayer.UserName.PadRight(maxFirstPlayerNameLength + 12)} | {game.SecondPlayer.UserName.PadRight(maxSecondPlayerNameLength + 13)} | {game.Result.ToString().PadRight(6)} | {game.RatingCost}\n");
+            sb.Append($"{game.Index.ToString().PadRight(maxIndexLength + 6)} | {game.GameName.PadRight(maxGameNameLength + 7)} | {game.FirstPlayer.UserName.PadRight(maxFirstPlayerNameLength + 12)} | {game.SecondPlayer.UserName.PadRight(maxSecondPlayerNameLength + 13)} | " + ((game.Result == Results.Draw || this.UserName.Equals(game.FirstPlayer.UserName)) ? game.Result.ToString().PadRight(6) : (game.Result == Results.Win ? Results.Lose.ToString().PadRight(6) : Results.Win.ToString().PadRight(6))) + $"| {game.RatingCost}\n");
 
         // Get the final string.
         return sb.ToString();
     }
 }
 
+public class PremiumGameAccount : GameAccount
+{
+    // Field which represents the multiplier by which the negative rating is divided (2 by default).
+    private uint multiplier;
+
+    // Rating setter is changed to work with multiplier.
+    public override uint CurrentRating
+    {
+        get => base.CurrentRating;
+        set => base.CurrentRating = base.CurrentRating > value ? ((base.CurrentRating - value) / multiplier) + value : value;
+    }
+
+    // Constructor to initialize the fields with the provided values.
+    public PremiumGameAccount(string name, uint multiplier = 2) : base(name) { this.multiplier = multiplier; }
+}
+
+public class PremiumPlusGameAccount : GameAccount
+{
+    // Field which represents the multiplier by which the rating value is increased and the negative value is divided (2 by default).
+    private uint multiplier;
+
+    // Rating setter is changed to work with multiplier.
+    public override uint CurrentRating
+    {
+        get => base.CurrentRating;
+        set => base.CurrentRating = base.CurrentRating > value ? ((base.CurrentRating - value) / multiplier) + value : ((value - base.CurrentRating) * multiplier) + base.CurrentRating;
+    }
+
+    // Constructor to initialize the fields with the provided values.
+    public PremiumPlusGameAccount(string name, uint multiplier = 2) : base(name) { this.multiplier = multiplier; }
+}
+
+
+
 class Program
 {
     public static void Main(string[] args)
     {
-        Console.WriteLine("Hello World!");
+
+
+
     }
 }
