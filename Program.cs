@@ -18,11 +18,11 @@ public abstract class Game
     private protected static uint constIndex = 0;
 
     // Fields to store the first and second player's GameAccount objects.
-    public GameAccount FirstPlayer { get; }
-    public GameAccount SecondPlayer { get; }
+    public GameAccount FirstPlayer { get; protected set; }
+    public GameAccount SecondPlayer { get; protected set; }
 
     // Fields to store the rating cost and index of the game.
-    public uint RatingCost { get; }
+    public uint RatingCost { get; protected set; }
     public uint Index { get; }
 
     // Fields to store the game's name and result .
@@ -40,11 +40,22 @@ public abstract class Game
         Result = Results.Undetermined;
     }
 
+    // Factory constructor.
+    public Game(string gameName)
+    {
+        GameName = gameName;
+        Index = constIndex++;
+        Result = Results.Undetermined;
+    }
+
     // Main method of a game.
     public abstract void Play();
 
     // Method to simulate a game match.
     public abstract void SimulatePlay();
+
+    // Factory method.
+    public abstract void SimulatePlay(GameAccount firstPlayer, GameAccount secondPlayer, uint cost = default);
 
 }
 
@@ -54,6 +65,9 @@ public class BasicGame : Game
     // Constructor to initialize the fields with the provided values.
     public BasicGame(GameAccount firstPlayer, GameAccount secondPlayer, uint cost) : base(firstPlayer, secondPlayer, cost, "Basic Game") { }
 
+    // Factory constructor.
+    public BasicGame() : base("Basic Game") { }
+
     public override void Play()
     {
         // If the game was implemented fully, the main method would be here.
@@ -68,14 +82,26 @@ public class BasicGame : Game
         FirstPlayer.CompleteGame(this);
     }
 
+    // In case you spawned game via factory.
+    public override void SimulatePlay(GameAccount firstPlayer, GameAccount secondPlayer, uint cost)
+    {
+        base.FirstPlayer = firstPlayer;
+        base.SecondPlayer = secondPlayer;
+        base.RatingCost = cost;
+        this.SimulatePlay();
+    }
+
 }
 
-// Training version - no rating costs
+// Training version - no rating costs.
 public class TrainingGame : Game
 {
     // Constructor to initialize the fields with the provided values.
     public TrainingGame(GameAccount firstPlayer, GameAccount secondPlayer) : base(firstPlayer, secondPlayer, 0, "Training Game") { }
 
+    // Factory constructor.
+    public TrainingGame() : base("Training Game") { }
+
     public override void Play()
     {
         // If the game was implemented fully, the main method would be here.
@@ -88,6 +114,15 @@ public class TrainingGame : Game
         Random r = new Random();
         Result = r.NextDouble() >= 0.5 ? Results.Draw : r.NextDouble() >= 0.5 ? Results.Win : Results.Lose;
         FirstPlayer.CompleteGame(this);
+    }
+
+    // In case you spawned game via factory.
+    public override void SimulatePlay(GameAccount firstPlayer, GameAccount secondPlayer, uint cost = 0)
+    {
+        base.RatingCost = 0;
+        base.FirstPlayer = firstPlayer;
+        base.SecondPlayer = secondPlayer;
+        this.SimulatePlay();
     }
 
 }
@@ -98,6 +133,9 @@ public class OneWayGame : Game
     // Constructor to initialize the fields with the provided values.
     public OneWayGame(GameAccount firstPlayer, GameAccount secondPlayer, uint cost) : base(firstPlayer, secondPlayer, cost, "One-way Game") { }
 
+    // Factory constructor.
+    public OneWayGame() : base("One-way game") { }
+
     public override void Play()
     {
         // If the game was implemented fully, the main method would be here.
@@ -110,7 +148,30 @@ public class OneWayGame : Game
         Random r = new Random();
         Result = r.NextDouble() >= 0.5 ? Results.Draw : r.NextDouble() >= 0.5 ? Results.Win : Results.Lose;
         FirstPlayer.CompleteGame(this);
+        
     }
+
+    // In case you spawned game via factory.
+    public override void SimulatePlay(GameAccount firstPlayer, GameAccount secondPlayer, uint cost)
+    {
+        base.FirstPlayer = firstPlayer;
+        base.SecondPlayer = secondPlayer;
+        base.RatingCost = cost;
+        this.SimulatePlay();
+    }
+
+}
+
+// Game factory class.
+// Note that games are one-use instances and using a game object (Play, SimulatePlay)
+// more than once causes an error, because indexes are assigned to games on creation
+// and using one game twice will break game histories.
+public class GameFactory
+{
+
+    public Game CreateBasicGame() => new BasicGame();
+    public Game CreateTrainingGame() => new TrainingGame();
+    public Game CreateOneWayGame() => new OneWayGame();
 
 }
 
@@ -129,7 +190,7 @@ public class GameAccount
     public virtual uint CurrentRating
     {
         get => rating;
-        set
+        protected set
         {
             int temp = (int)value;
             rating = temp < 0 ? 0 : value;
@@ -201,7 +262,7 @@ public class GameAccount
     // That includes user's game history and rating.
     public void GetStats()
     {
-        Console.WriteLine(GameHistoryToString(this.GameHistory));
+        if (this.GameHistory.Count != 0) Console.WriteLine(GameHistoryToString(this.GameHistory));
         Console.WriteLine($"{UserName}'s rating: {CurrentRating}\n");
     }
 
@@ -230,13 +291,14 @@ public class GameAccount
 
         // Iterate over the games in the list and add them to the StringBuilder.
         foreach (Game game in history)
-            sb.Append($"{game.Index.ToString().PadRight(maxIndexLength + 6)} | {game.GameName.PadRight(maxGameNameLength + 7)} | {game.FirstPlayer.UserName.PadRight(maxFirstPlayerNameLength + 12)} | {game.SecondPlayer.UserName.PadRight(maxSecondPlayerNameLength + 13)} | " + ((game.Result == Results.Draw || this.UserName.Equals(game.FirstPlayer.UserName)) ? game.Result.ToString().PadRight(6) : (game.Result == Results.Win ? Results.Lose.ToString().PadRight(6) : Results.Win.ToString().PadRight(6))) + $"| {game.RatingCost}\n");
+            sb.Append($"{game.Index.ToString().PadRight(maxIndexLength + 6)} | {game.GameName.PadRight(maxGameNameLength + 7)} | {game.FirstPlayer.UserName.PadRight(maxFirstPlayerNameLength + 12)} | {game.SecondPlayer.UserName.PadRight(maxSecondPlayerNameLength + 13)} | " + ((game.Result == Results.Draw || this.UserName.Equals(game.FirstPlayer.UserName)) ? game.Result.ToString().PadRight(6) : (game.Result == Results.Win ? Results.Lose.ToString().PadRight(6) : Results.Win.ToString().PadRight(6))) + $" | {game.RatingCost}\n");
 
         // Get the final string.
         return sb.ToString();
     }
 }
 
+// Premium version of a game account (less points on loses).
 public class PremiumGameAccount : GameAccount
 {
     // Field which represents the multiplier by which the negative rating is divided (2 by default).
@@ -246,13 +308,14 @@ public class PremiumGameAccount : GameAccount
     public override uint CurrentRating
     {
         get => base.CurrentRating;
-        set => base.CurrentRating = base.CurrentRating > value ? ((base.CurrentRating - value) / multiplier) + value : value;
+        protected set => base.CurrentRating = base.CurrentRating > value ? ((base.CurrentRating - value) / multiplier) + value : value;
     }
 
     // Constructor to initialize the fields with the provided values.
     public PremiumGameAccount(string name, uint multiplier = 2) : base(name) { this.multiplier = multiplier; }
 }
 
+// PremiumPlus version of a game account (more points on wins, less points on loses).
 public class PremiumPlusGameAccount : GameAccount
 {
     // Field which represents the multiplier by which the rating value is increased and the negative value is divided (2 by default).
@@ -262,7 +325,7 @@ public class PremiumPlusGameAccount : GameAccount
     public override uint CurrentRating
     {
         get => base.CurrentRating;
-        set => base.CurrentRating = base.CurrentRating > value ? ((base.CurrentRating - value) / multiplier) + value : ((value - base.CurrentRating) * multiplier) + base.CurrentRating;
+        protected set => base.CurrentRating = base.CurrentRating > value ? ((base.CurrentRating - value) / multiplier) + value : ((value - base.CurrentRating) * multiplier) + base.CurrentRating;
     }
 
     // Constructor to initialize the fields with the provided values.
@@ -270,13 +333,20 @@ public class PremiumPlusGameAccount : GameAccount
 }
 
 
-
 class Program
 {
     public static void Main(string[] args)
     {
 
+        GameFactory factory = new GameFactory();
+        List<Game> games = new List<Game> { factory.CreateBasicGame(), factory.CreateTrainingGame(), factory.CreateOneWayGame() };
+        List<GameAccount> accounts = new List<GameAccount> { new GameAccount("Basic"), new PremiumGameAccount("Premium"), new PremiumPlusGameAccount("PPlus") };
 
+        games[0].SimulatePlay(accounts[0], accounts[1], 5);
+        games[1].SimulatePlay(accounts[0], accounts[2]);
+        games[2].SimulatePlay(accounts[1], accounts[2], 5);
+
+        foreach (GameAccount acc in accounts) acc.GetStats();
 
     }
 }
